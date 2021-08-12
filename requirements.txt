@@ -1,0 +1,11 @@
+gunicorn==19.9.0
+Django==3.0.5
+djangorestframework==3.11.0
+celery==4.4.2
+psycopg2==2.8.6
+dj-database-url
+dj-rest-auth[with_social]
+django-allauth>=0.24.1
+requests==2.23.0
+python-json-logger==0.1.11
+pika==1.1.0

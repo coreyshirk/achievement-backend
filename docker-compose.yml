@@ -1,0 +1,96 @@
+version: "3"
+services:
+    db:
+        image: postgres
+        ports:
+            - 5432:5432
+        environment:
+            POSTGRES_HOST_AUTH_METHOD: "trust" # This turns off superuser password, local dev only
+
+    web:
+        restart: always
+        build: .
+        command:
+            [
+                "./wait-for-it.sh",
+                "rabbit:5672",
+                "--",
+                "python",
+                "manage.py",
+                "runserver",
+                "0.0.0.0:8000",
+            ]
+        environment:
+            DEBUG: "True"
+            USE_DOCKER: "True"
+        # Add for breakpoint() support
+        stdin_open: true
+        tty: true
+        # End for breakpoint() support
+        expose:
+            - "8000"
+        ports:
+            - "8000:8000"
+        volumes:
+            - .:/code
+        depends_on:
+            - migration
+            - rabbit
+        links:
+            - db
+            - rabbit
+
+    migration:
+        build: .
+        image: web
+        command:
+            [
+                "./wait-for-it.sh",
+                "rabbit:5672",
+                "--",
+                "python",
+                "manage.py",
+                "migrate",
+            ]
+        volumes:
+            - .:/code
+        links:
+            - db
+        depends_on:
+            - db
+            - rabbit
+
+    rabbit:
+        hostname: rabbit
+        image: rabbitmq:management
+        environment:
+            - DEFAULT_USER=guest
+            - DEFAULT_PASS=guest
+        ports:
+            # The standard AMQP protocol port
+            - "5672:5672"
+            # HTTP management UI
+            - "15672:15672"
+
+    worker:
+        build: .
+        command:
+            [
+                "./wait-for-it.sh",
+                "rabbit:5672",
+                "--",
+                "celery",
+                "-A",
+                "achievements",
+                "worker",
+                "-l",
+                "info",
+            ]
+        volumes:
+            - .:/code
+        links:
+            - rabbit
+            - db
+        depends_on:
+            - rabbit
+            - db
